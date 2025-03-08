@@ -1,33 +1,18 @@
-module "mgmt_eks" {
+
+# 🔹 EKS Cluster
+module "eks" {
   source          = "terraform-aws-modules/eks/aws"
-  cluster_name    = "mgmt-eks"
-  enable_fargate  = true
-  vpc_id          = module.mgmt_vpc.vpc_id
-  subnet_ids      = module.mgmt_vpc.private_subnets
+  cluster_name    = "hipaa-eks"
+  cluster_version = "1.28"
 
-  node_groups = {
+  vpc_id     = module.vpc.vpc_id
+  subnet_ids = module.vpc.private_subnets
+  enable_irsa = true
+
+  eks_managed_node_groups = {
     workers = {
-      desired_capacity = 2
-      max_capacity     = 4
-      min_capacity     = 2
-
-      instance_types = ["m5.large"]
-    }
-  }
-
-}
-
-module "dev_eks" {
-  source          = "terraform-aws-modules/eks/aws"
-  cluster_name    = "dev-eks"
-  enable_fargate  = true
-  vpc_id          = module.dev_vpc.vpc_id
-  subnet_ids      = module.dev_vpc.private_subnets
-
-  node_groups = {
-    workers = {
-      desired_capacity = 2
-      max_capacity     = 4
+      desired_capacity = 3
+      max_capacity     = 5
       min_capacity     = 2
 
       instance_types = ["m5.large"]
@@ -35,39 +20,32 @@ module "dev_eks" {
   }
 }
 
-module "staging_eks" {
-  source          = "terraform-aws-modules/eks/aws"
-  cluster_name    = "staging-eks"
-  enable_fargate  = true
-  vpc_id          = module.staging_vpc.vpc_id
-  subnet_ids      = module.staging_vpc.private_subnets
+# 🔹 IAM Role for EKS Nodes
+resource "aws_iam_role" "eks_node_role" {
+  name = "eks-node-role"
 
-  node_groups = {
-    workers = {
-      desired_capacity = 2
-      max_capacity     = 4
-      min_capacity     = 2
-
-      instance_types = ["m5.large"]
-    }
-  }
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect = "Allow"
+      Principal = { Service = "ec2.amazonaws.com" }
+      Action = "sts:AssumeRole"
+    }]
+  })
 }
 
-module "prod_eks" {
-  source          = "terraform-aws-modules/eks/aws"
-  cluster_name    = "prod-eks"
-  enable_fargate  = true
-  vpc_id          = module.prod_vpc.vpc_id
-  subnet_ids      = module.prod_vpc.private_subnets
+# 🔹 Attach Policies to IAM Role
+resource "aws_iam_role_policy_attachment" "eks_node_policy" {
+  role       = aws_iam_role.eks_node_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKSWorkerNodePolicy"
+}
 
-  node_groups = {
-    workers = {
-      desired_capacity = 2
-      max_capacity     = 4
-      min_capacity     = 2
+resource "aws_iam_role_policy_attachment" "eks_cni_policy" {
+  role       = aws_iam_role.eks_node_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEKS_CNI_Policy"
+}
 
-      instance_types = ["m5.large"]
-    }
-  }
-  
+resource "aws_iam_role_policy_attachment" "eks_ssm_policy" {
+  role       = aws_iam_role.eks_node_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
 }
