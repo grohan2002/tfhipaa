@@ -18,7 +18,7 @@ data "aws_ami" "amazon_linux_2" {
 resource "aws_instance" "prod_ec2" {
   ami           = data.aws_ami.amazon_linux_2.id
   instance_type = "t2.xlarge"
-  subnet_id     = module.prod_vpc.private_subnets[0]
+#   subnet_id     = module.prod_vpc.private_subnets[0]
   vpc_security_group_ids = [aws_security_group.prod_sg.id]
 #   key_name      = "eks-node-key"
 
