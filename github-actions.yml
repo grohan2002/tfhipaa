@@ -1,0 +1,35 @@
+name: "Terraform Deploy HIPAA EKS"
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout Repository"
+        uses: actions/checkout@v4
+
+      - name: "Setup Terraform"
+        uses: hashicorp/setup-terraform@v2
+
+      - name: "Configure AWS Credentials"
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::YOUR_ACCOUNT_ID:role/GitHubActionsTerraformRole
+          aws-region: us-east-1
+
+      - name: "Initialize Terraform"
+        run: terraform init
+
+      - name: "Validate Terraform Code"
+        run: terraform validate
+
+      - name: "Plan Terraform Changes"
+        run: terraform plan -out=tfplan
+
+      - name: "Apply Terraform Changes"
+        if: github.ref == 'refs/heads/main'
+        run: terraform apply -auto-approve tfplan
